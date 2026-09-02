@@ -27,6 +27,95 @@ const MAX_BYTES = 6 * 1024 * 1024; // 6MB — 기사 본문 하나로 충분한 
 const TIMEOUT_MS = 12000;
 const MAX_REDIRECTS = 5;
 
+// ── 남용 방지 ────────────────────────────────────────────────────────────
+// 이 엔드포인트는 인증이 없다. SSRF는 아래에서 막지만, "누가 얼마나 부를 수
+// 있는가"는 별개 문제다. 주소만 알면 누구나 이 함수를 범용 URL 페처로 쓸 수
+// 있고 비용은 이 프로젝트 소유자에게 청구된다.
+//
+// 오리진·리퍼러 검사는 여기서 쓸 수 없다. 클라이언트가 referrerPolicy:'no-referrer'로
+// 부르는 데다 같은 도메인 GET이라 Origin도 안 붙는다. 정상 요청에 헤더가 없으니
+// 헤더로 거르면 사이트 자신이 막힌다. 게다가 curl로는 위조가 자유롭다.
+//
+// 그래서 헤더와 무관하게 작동하는 IP 레이트리밋을 쓴다. 다만 이건 인스턴스
+// 메모리 기반이라 완전한 방어가 아니다 — 서버리스는 인스턴스가 여러 개 뜨고
+// 콜드스타트마다 카운터가 초기화된다. 분산 공격은 못 막는다. 확실히 막으려면
+// Vercel KV / Upstash 같은 공유 저장소로 옮겨야 한다. 여기 있는 건 실수와
+// 가벼운 남용을 걸러 청구서가 폭주하지 않게 하는 과속방지턱이다.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_IP = 30;        // IP당 분당
+const RATE_MAX_INSTANCE = 300; // 인스턴스 전체 분당 (백스톱)
+const RATE_MAX_TRACKED_IPS = 5000;
+
+const ipHits = new Map(); // ip -> 최근 요청 시각 배열
+let instanceHits = [];
+
+function recent(arr, now) {
+  const cut = now - RATE_WINDOW_MS;
+  let i = 0;
+  while (i < arr.length && arr[i] <= cut) i++;
+  return i ? arr.slice(i) : arr;
+}
+
+function clientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff) return xff.split(',')[0].trim();
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
+}
+
+// 통과하면 null, 막히면 남은 대기 초
+function rateLimit(req) {
+  const now = Date.now();
+
+  instanceHits = recent(instanceHits, now);
+  if (instanceHits.length >= RATE_MAX_INSTANCE) {
+    return Math.ceil((instanceHits[0] + RATE_WINDOW_MS - now) / 1000);
+  }
+
+  const ip = clientIp(req);
+  const hits = recent(ipHits.get(ip) || [], now);
+  if (hits.length >= RATE_MAX_IP) {
+    ipHits.set(ip, hits);
+    return Math.ceil((hits[0] + RATE_WINDOW_MS - now) / 1000);
+  }
+
+  hits.push(now);
+  ipHits.set(ip, hits);
+  instanceHits.push(now);
+
+  // Map이 무한히 커지지 않게 정리한다 (메모리 고갈 자체가 공격 표면이다)
+  if (ipHits.size > RATE_MAX_TRACKED_IPS) {
+    for (const [k, v] of ipHits) {
+      if (recent(v, now).length === 0) ipHits.delete(k);
+      if (ipHits.size <= RATE_MAX_TRACKED_IPS) break;
+    }
+  }
+  return null;
+}
+
+// ── CORS ────────────────────────────────────────────────────────────────
+// 같은 도메인에 배포했으면(PROXY_BASE='') CORS 헤더 자체가 필요 없다. 그래서
+// 기본값은 헤더를 안 붙이는 것이다. api만 별도 프로젝트로 올렸다면 Vercel
+// 환경변수 ALLOWED_ORIGINS에 리더 주소를 넣는다. 쉼표로 여러 개 가능.
+//   예) ALLOWED_ORIGINS=https://my-reader.vercel.app
+//
+// 주의 — 이건 남의 웹페이지가 이 프록시를 자기 CORS 백엔드로 쓰는 것만 막는다.
+// curl·스크립트 직접 호출은 CORS와 무관하다. 그쪽은 위 레이트리밋 담당이다.
+const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return; // 같은 도메인 요청 — 브라우저가 Origin을 안 보낸다
+  if (ALLOWED_ORIGINS.includes('*')) {
+    res.setHeader('access-control-allow-origin', '*');
+    return;
+  }
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('access-control-allow-origin', origin);
+    res.setHeader('vary', 'origin');
+  }
+}
+
 function isPrivateIPv4(ip) {
   const p = ip.split('.').map(Number);
   if (p.length !== 4 || p.some((n) => Number.isNaN(n))) return true;
@@ -124,7 +213,20 @@ async function safeFetch(rawUrl, redirectsLeft) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('access-control-allow-origin', '*');
+  applyCors(req, res);
+
+  if (req.method && req.method !== 'GET' && req.method !== 'HEAD') {
+    res.setHeader('allow', 'GET, HEAD');
+    res.status(405).json({ error: 'method-not-allowed' });
+    return;
+  }
+
+  const retryAfter = rateLimit(req);
+  if (retryAfter !== null) {
+    res.setHeader('retry-after', String(retryAfter));
+    res.status(429).json({ error: 'rate-limited', retryAfter });
+    return;
+  }
 
   const target = req.query?.url;
   if (!target || typeof target !== 'string') {
