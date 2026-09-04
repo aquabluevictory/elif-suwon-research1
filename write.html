@@ -13,14 +13,17 @@
 (function () {
   try {
     Object.defineProperty(window, 'APP_ROLE', {
-      configurable: false, enumerable: true,
+      configurable: true, enumerable: true,   /* ← true 필수.
+         false 로 두면 전역에 비설정 속성이 생겨, 앱 본체의
+         top-level `const APP_ROLE = ...` 선언이 SyntaxError 를 내고
+         앱 스크립트 전체가 실행되지 않는다(글쓰기 버튼이 죽는다). */
       get: function () { return 'writer'; },
       set: function () {}
     });
   } catch (e) { window.APP_ROLE = 'writer'; }
   try {
     Object.defineProperty(window, 'BAKED_DATA', {
-      configurable: false, enumerable: false,
+      configurable: true, enumerable: false,   /* 같은 이유로 true */
       get: function () { return undefined; },
       set: function () {}
     });
