@@ -33,7 +33,20 @@ window.NEWS_SYNC_CONFIG = {
        'local' — 이 사이트가 서빙하는 ./data/posts.json.
                  GitHub Pages 재빌드(보통 30~90초)를 기다려야 한다.
        raw가 막힌 망에서는 자동으로 local로 넘어간다. 순서만 바꾸면 반대가 된다. */
-    read: ['raw', 'local']
+    /* [2026-09-04 수정] 이 저장소는 private이다.
+       private 저장소의 raw.githubusercontent.com은 익명 요청에 404를 준다
+       (실제로 확인함). 그런데 news-sync.js의 pull()은 404를 만나면
+       "아직 파일이 없다 = 첫 발행 전"으로 보고 그 자리에서 return 해 버린다.
+       continue가 아니라 return이라, 뒤에 있는 'local'을 영영 시도하지 않는다.
+       그 결과 리더(index.html)는 data/posts.json을 한 번도 읽지 못하고
+       내장 스냅샷(BAKED_DATA)만 계속 보여 준다 — 이것이 index.html이
+       write.html을 따라오지 않던 진짜 원인이다.
+
+       그래서 raw를 아예 뺀다. Pages가 서빙하는 ./data/posts.json만 읽는다.
+       (Pages 사이트는 공개라 익명으로 잘 읽힌다.)
+       반영은 커밋 몇 초가 아니라 Pages 재빌드 뒤 = 보통 30~90초.
+       저장소를 public으로 바꾸면 ['raw','local']로 되돌려 더 빠르게 할 수 있다. */
+    read: ['local']
   },
 
   /* ── backend:'server'일 때 쓰는 값 ─────────────────────────────── */
