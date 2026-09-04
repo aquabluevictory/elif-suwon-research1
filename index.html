@@ -54,14 +54,14 @@ var appStorage = (function(){
 (function (root) {
   'use strict';
 
-  var DB_NAME = 'news_store_v1';
+  var DB_NAME = 'elifsuwon_store_v1';
   var DB_VERSION = 2;                 // v2 — 첨부 Blob을 별도 스토어로 분리
   var STORE_ARTICLES = 'articles';
   var STORE_REACTIONS = 'reactions';
   var STORE_META = 'meta';
   var STORE_BLOBS = 'blobs';          // 첨부 원본(Blob) 전용 — 글 레코드와 분리
   var CHUNK_BYTES = 32 * 1024 * 1024; // Blob 직접 저장이 막힌 엔진용 폴백 청크
-  var BC_NAME = 'news_store_v1_sync';
+  var BC_NAME = 'elifsuwon_store_v1_sync';
 
   var hasWindow = typeof window !== 'undefined';
   var hasDocument = typeof document !== 'undefined';
@@ -2568,7 +2568,7 @@ body.viewer #mine-empty{display:none!important}
     life:{label:'청약·제도', g:'linear-gradient(135deg,#0D2A2E,#2A7E86)'},
     health:{label:'자금', g:'linear-gradient(135deg,#2B1A12,#96502A)'}
   };
-  const KEY='news_my_articles_v1', DRAFT='news_draft_v1';
+  const KEY='elifsuwon_my_articles_v1', DRAFT='elifsuwon_draft_v1';
   /* 발행 템플릿이 이 앱과 같은 세대인지 확인하는 표식.
      구버전 파일로 발행하면 리더 쪽에 gamma 분기가 없어서 원본 docs 주소가
      그대로 iframe에 들어가고, 기사 자리에 브라우저 오류 화면이 박힌다. */
@@ -4104,7 +4104,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
   }
 
   async function exportData(){
-    let proxy=''; try{ proxy=appStorage.getItem('news_ai_proxy')||''; }catch(e){}
+    let proxy=''; try{ proxy=appStorage.getItem('elifsuwon_ai_proxy')||''; }catch(e){}
     const d=new Date();
     const name='news-backup-'+d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate())
       +'-'+pad2(d.getHours())+pad2(d.getMinutes())+'.json';
@@ -4195,11 +4195,11 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
       }
       // 프록시 설정 복원 — 현재 비어 있을 때만(기존 설정 덮어쓰지 않음)
       try{
-        const cur=appStorage.getItem('news_ai_proxy')||'';
+        const cur=appStorage.getItem('elifsuwon_ai_proxy')||'';
         const inProxy=(!Array.isArray(parsed) && parsed.settings && parsed.settings.ai_proxy) || '';
         if(!cur && inProxy && /^https?:\/\//.test(inProxy)){
           const clean=inProxy.trim().replace(/\/+$/,'');
-          appStorage.setItem('news_ai_proxy', clean); AI_PROXY=clean;
+          appStorage.setItem('elifsuwon_ai_proxy', clean); AI_PROXY=clean;
         }
       }catch(e){}
 
@@ -4422,7 +4422,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
        연달아 세 번 실패한 곳은 5분 쉬게 둔다(회로 차단). 기록이 기기에
        남으니 두 번째 방문부터는 어디가 살아 있는지 알고 시작한다. */
     const NET=(function(){
-      const HKEY='news_proxy_health_v2', COOLDOWN=5*60e3, TRIP=3;
+      const HKEY='elifsuwon_proxy_health_v2', COOLDOWN=5*60e3, TRIP=3;
 
       // pick — 본문을 JSON으로 감싸 돌려주는 프록시에서 알맹이만 꺼내는 어댑터
       const EP=[
@@ -4719,7 +4719,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
        세션 Map만 쓰면 새로고침 한 번에 전부 날아가고, 느린 프록시를 처음부터
        다시 탄다. 파싱까지 끝난 결과를 6시간 보관해 두 번째 열람은 즉시,
        오프라인에서도 읽히게 한다. raw HTML은 무거워서 메모리에만 둔다. */
-    const CKEY='news_web_cache_v1', CTTL=6*60*60e3, CMAX=24;
+    const CKEY='elifsuwon_web_cache_v1', CTTL=6*60*60e3, CMAX=24;
     let disk={}; try{ disk=JSON.parse(appStorage.getItem(CKEY)||'{}')||{}; }catch(e){ disk={}; }
     function diskGet(url){
       const d=disk[url];
@@ -5432,9 +5432,9 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
   });
 
   /* ── AI 생성 (얇은 프록시 경유 · 키는 서버에만) ── */
-  let AI_PROXY=''; try{ AI_PROXY=appStorage.getItem('news_ai_proxy')||''; }catch(e){}
+  let AI_PROXY=''; try{ AI_PROXY=appStorage.getItem('elifsuwon_ai_proxy')||''; }catch(e){}
   /* ── ChatGPT(OpenAI) 이미지 — 키는 이 기기 브라우저에만 저장, 발행본에 포함되지 않음 ── */
-  let OPENAI_KEY=''; try{ OPENAI_KEY=appStorage.getItem('news_openai_key')||''; }catch(e){}
+  let OPENAI_KEY=''; try{ OPENAI_KEY=appStorage.getItem('elifsuwon_openai_key')||''; }catch(e){}
   function setOpenAIKey(){
     const cur=OPENAI_KEY?'저장됨 ('+OPENAI_KEY.slice(0,7)+'…)':'없음';
     const v=window.prompt(
@@ -5445,15 +5445,15 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
     if(v===null) return;
     const t=v.trim();
     if(!t){
-      OPENAI_KEY=''; try{appStorage.removeItem('news_openai_key');}catch(e){}
+      OPENAI_KEY=''; try{appStorage.removeItem('elifsuwon_openai_key');}catch(e){}
       aiStatus('키를 지웠어요 — 무료 AI로 생성해요','');
       return;
     }
     if(!/^sk-/.test(t)){ aiStatus('sk-로 시작하는 OpenAI 키가 아니에요','err'); return; }
-    OPENAI_KEY=t; try{appStorage.setItem('news_openai_key',t);}catch(e){}
+    OPENAI_KEY=t; try{appStorage.setItem('elifsuwon_openai_key',t);}catch(e){}
     aiStatus('ChatGPT 이미지 사용 설정 완료 ✓','ok');
   }
-  function clearOpenAIKey(){ OPENAI_KEY=''; try{appStorage.removeItem('news_openai_key');}catch(e){} }
+  function clearOpenAIKey(){ OPENAI_KEY=''; try{appStorage.removeItem('elifsuwon_openai_key');}catch(e){} }
   async function genImageOpenAI(prompt){
     const call=async(model)=>{
       const body={model:model, prompt:prompt, n:1, size:(model==='gpt-image-1'?'1536x1024':'1792x1024')};
@@ -5479,7 +5479,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
   function ensureProxy(){
     if(AI_PROXY) return true;
     const v=window.prompt('AI 영상 생성에는 자체 프록시 서버가 필요해요.\n프록시 URL을 붙여넣어 주세요 (예: https://your-worker.workers.dev)\n\n※ AI 이미지와 번역은 프록시 없이도 자동으로 동작해요.');
-    if(v && /^https?:\/\//.test(v.trim())){ AI_PROXY=v.trim().replace(/\/+$/,''); try{appStorage.setItem('news_ai_proxy',AI_PROXY);}catch(e){} return true; }
+    if(v && /^https?:\/\//.test(v.trim())){ AI_PROXY=v.trim().replace(/\/+$/,''); try{appStorage.setItem('elifsuwon_ai_proxy',AI_PROXY);}catch(e){} return true; }
     if(v!==null) aiStatus('올바른 https URL이 아니에요.','err');
     return false;
   }
@@ -5511,9 +5511,9 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
   $('ai-image-btn').addEventListener('click', async ()=>{
     // 첫 사용 시 한 번만 ChatGPT 연결 여부를 물어봄 (건너뛰면 무료 AI)
     if(!OPENAI_KEY && !AI_PROXY){
-      let asked=''; try{ asked=appStorage.getItem('news_openai_asked')||''; }catch(e){}
+      let asked=''; try{ asked=appStorage.getItem('elifsuwon_openai_asked')||''; }catch(e){}
       if(!asked){
-        try{ appStorage.setItem('news_openai_asked','1'); }catch(e){}
+        try{ appStorage.setItem('elifsuwon_openai_asked','1'); }catch(e){}
         if(window.confirm('ChatGPT(OpenAI)로 이미지를 생성할까요?\nAPI 키가 필요해요. [취소]하면 무료 AI로 생성해요.\n나중에 ⚙ 버튼으로 언제든 바꿀 수 있어요.')){
           setOpenAIKey();
         }
@@ -6272,7 +6272,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
     /* ── 번역 캐시 ──
        같은 조각을 두 번 번역하지 않는다. 언어를 갔다 돌아와도, 접었다 다시
        펼쳐도 즉시. 조각 묶음의 해시가 키라 글이 바뀌면 자동으로 무효가 된다. */
-    const TKEY='news_trans_v1', TMAX=60;
+    const TKEY='elifsuwon_trans_v1', TMAX=60;
     const memo=new Map();
     let tdisk={}; try{ tdisk=JSON.parse(appStorage.getItem(TKEY)||'{}')||{}; }catch(e){ tdisk={}; }
     function memoGet(k){
@@ -6720,19 +6720,19 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
       form.style.display='none'; ok.classList.add('show');
       $('sub-success-txt').textContent='구독 완료 · '+addr+' — 내일 아침에 만나요!';
     }
-    let saved=''; try{ saved=appStorage.getItem('news_sub_email')||''; }catch(e){}
+    let saved=''; try{ saved=appStorage.getItem('elifsuwon_sub_email')||''; }catch(e){}
     if(saved) done(saved);
     em.addEventListener('input',()=>{ btn.disabled=!EMAIL.test(em.value.trim()); });
     em.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!btn.disabled) btn.click(); });
     btn.addEventListener('click',()=>{
       const v=em.value.trim(); if(!EMAIL.test(v)) return;
-      try{ appStorage.setItem('news_sub_email',v); }catch(e){}
+      try{ appStorage.setItem('elifsuwon_sub_email',v); }catch(e){}
       done(v); showSnack('브리핑을 구독했어요', null);
     });
     if(nt){
-      try{ nt.checked=appStorage.getItem('news_notif')==='1'; }catch(e){}
+      try{ nt.checked=appStorage.getItem('elifsuwon_notif')==='1'; }catch(e){}
       nt.addEventListener('change',()=>{
-        try{ appStorage.setItem('news_notif', nt.checked?'1':'0'); }catch(e){}
+        try{ appStorage.setItem('elifsuwon_notif', nt.checked?'1':'0'); }catch(e){}
         showSnack(nt.checked?'속보 알림을 켰어요':'속보 알림을 껐어요', null);
       });
     }
@@ -6892,7 +6892,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
      실패하면 조용히 샘플 값을 유지해요
   ═══════════════════════════════════════════ */
   (function(){
-    const LIVE_KEY='news_live_v1';
+    const LIVE_KEY='elifsuwon_live_v1';
     const TTL={wx:30*60e3, mkt:5*60e3};
     let cache={};
     try{ cache=JSON.parse(appStorage.getItem(LIVE_KEY)||'{}')||{}; }catch(e){ cache={}; }
