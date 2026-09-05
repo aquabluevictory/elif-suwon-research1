@@ -49,7 +49,7 @@ window.NEWS_SYNC_CONFIG = {
     /* [2026-09-05] 저장소를 public으로 전환했다. raw를 다시 앞에 둔다.
        raw는 커밋 몇 초 뒤, local(Pages)은 재빌드 30~90초 뒤에 반영된다.
        CDN도 다르므로 한쪽이 막혀도 다른 쪽으로 읽힌다. */
-    read: ['raw', 'local']
+    read: ['local']
   },
 
   /* ── backend:'server'일 때 쓰는 값 ─────────────────────────────── */
