@@ -101,14 +101,14 @@ var appStorage = (function(){
 (function (root) {
   'use strict';
 
-  var DB_NAME = 'elifsuwon_store_v1';
+  var DB_NAME = 'news_store_v1';
   var DB_VERSION = 2;                 // v2 — 첨부 Blob을 별도 스토어로 분리
   var STORE_ARTICLES = 'articles';
   var STORE_REACTIONS = 'reactions';
   var STORE_META = 'meta';
   var STORE_BLOBS = 'blobs';          // 첨부 원본(Blob) 전용 — 글 레코드와 분리
   var CHUNK_BYTES = 32 * 1024 * 1024; // Blob 직접 저장이 막힌 엔진용 폴백 청크
-  var BC_NAME = 'elifsuwon_store_v1_sync';
+  var BC_NAME = 'news_store_v1_sync';
 
   var hasWindow = typeof window !== 'undefined';
   var hasDocument = typeof document !== 'undefined';
