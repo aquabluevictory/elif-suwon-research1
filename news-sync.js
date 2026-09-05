@@ -571,8 +571,13 @@
         try { r = await req(url, { method: 'GET' }); }
         catch (e) { last = { ok: false, error: String((e && e.message) || e) }; continue; }
 
-        // 파일이 아직 없다 — 첫 발행 전이다. 오류가 아니다.
-        if (r.status === 404) return { ok: true, changed: false, persistent: true };
+        // 파일이 아직 없다. 다만 뒤에 남은 읽기 경로가 있으면 그쪽을 마저 시도한다.
+        // private 저장소의 raw는 익명 요청에 404를 준다 — 여기서 곧장 return하면
+        // 'local' 폴백이 영영 실행되지 않아 리더가 정본을 못 읽는다.
+        if (r.status === 404) {
+          if (i < sources.length - 1) { last = { ok: false, status: 404, error: 'HTTP 404' }; continue; }
+          return { ok: true, changed: false, persistent: true };   // 마지막 경로까지 없으면 첫 발행 전이다.
+        }
         if (!r.ok) { last = { ok: false, status: r.status, error: 'HTTP ' + r.status }; continue; }
 
         var s = normStore(r.json);
