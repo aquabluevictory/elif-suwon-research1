@@ -5605,7 +5605,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
     const f=e.target.files&&e.target.files[0]; e.target.value='';
     if(!f) return;
     readMediaFile(f, m=>{
-      if(m){ setMedia(m); scheduleDraft(); }
+      if(m){ setMedia(m); scheduleDraft(); if(window.__assetUpload) window.__assetUpload({m:m, setMedia:setMedia, scheduleDraft:scheduleDraft, showSnack:showSnack}); }
       else showSnack('파일을 불러오지 못했어요', null);
     });
   });
@@ -7134,5 +7134,106 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
       }catch(e){}
     });
   }
+</script>
+<script>
+/* ── 사진을 저장소 img/ 로 올린다 ─────────────────────────────────────
+   posts.json 에 dataURL 을 박으면 5MB 상한에 금방 닿고, objectURL 은
+   다른 기기에서 깨진다. 그래서 사진은 파일로 img/ 에 올리고 본문에는
+   상대경로만 남긴다 — 이미 발행된 이미지들과 같은 모양이다.
+   발행 키가 없으면 아무 일도 하지 않고 기존 동작을 그대로 둔다. */
+(function(){
+  var MAX_PX = 1600, Q = 0.8;
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function stamp(){
+    var d = new Date();
+    return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+  }
+  function rand(){
+    try {
+      var a = new Uint8Array(4);
+      crypto.getRandomValues(a);
+      return Array.prototype.map.call(a, function(x){
+        var h = x.toString(16); return h.length < 2 ? '0' + h : h;
+      }).join('');
+    } catch (e) { return Math.random().toString(16).slice(2, 10); }
+  }
+
+  /* 긴 변 1600px, webp. 갤럭시 원본 3~5MB 가 보통 200~400KB 로 줄어든다. */
+  async function shrink(file){
+    var bmp;
+    try { bmp = await createImageBitmap(file); } catch (e) { return null; }
+    var w = bmp.width, h = bmp.height;
+    var sc = Math.min(1, MAX_PX / Math.max(w, h));
+    w = Math.max(1, Math.round(w * sc));
+    h = Math.max(1, Math.round(h * sc));
+
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    try { cv.getContext('2d').drawImage(bmp, 0, 0, w, h); }
+    catch (e) { return null; }
+    if (bmp.close) { try { bmp.close(); } catch (e) {} }
+
+    var blob = await new Promise(function(res){ cv.toBlob(res, 'image/webp', Q); });
+    if (!blob) blob = await new Promise(function(res){ cv.toBlob(res, 'image/jpeg', 0.85); });
+    return blob;
+  }
+
+  function toB64(blob){
+    return new Promise(function(res, rej){
+      var r = new FileReader();
+      r.onload = function(){
+        var s = String(r.result || ''), i = s.indexOf(',');
+        res(i < 0 ? '' : s.slice(i + 1));
+      };
+      r.onerror = function(){ rej(new Error('read')); };
+      r.readAsDataURL(blob);
+    });
+  }
+
+  window.__assetUpload = async function(ctx){
+    var m = ctx && ctx.m;
+    var snack = (ctx && ctx.showSnack) || function(){};
+    if (!m || m.kind !== 'image' || !m.blob) return;
+    if (!window.NewsSync || !NewsSync.putAsset || !NewsSync.isAdmin || !NewsSync.isAdmin()) return;
+
+    snack('사진 올리는 중…', null);
+    try {
+      var blob = await shrink(m.blob);
+      if (!blob) { snack('사진을 변환하지 못했어요 — 기존 방식으로 첨부합니다', null); return; }
+
+      var ext  = blob.type === 'image/webp' ? 'webp' : 'jpg';
+      var path = 'img/' + stamp() + '-' + rand() + '.' + ext;
+
+      var b64 = await toB64(blob);
+      if (!b64) { snack('사진을 읽지 못했어요', null); return; }
+
+      var r = await NewsSync.putAsset(path, b64, 'assets: ' + path + ' 추가');
+      if (!r || !r.ok) {
+        snack('사진 업로드 실패 — ' + ((r && r.error) || '알 수 없는 오류'), null);
+        return;
+      }
+
+      var preview = null;
+      try { preview = URL.createObjectURL(blob); } catch (e) {}
+
+      var next = {
+        kind: 'image',
+        url: path,        // 발행에 남는 값
+        data: preview,    // 화면 미리보기용 (발행 시 떨어져 나간다)
+        blob: blob,
+        poster: null,     // 상대경로가 있으니 썸네일을 따로 싣지 않는다
+        name: m.name || path.split('/').pop(),
+        size: blob.size,
+        type: blob.type || 'image/webp'
+      };
+      if (ctx.setMedia) ctx.setMedia(next);
+      if (ctx.scheduleDraft) ctx.scheduleDraft();
+      snack('사진을 저장소에 올렸습니다 (' + Math.round(blob.size / 1024) + 'KB)', null);
+    } catch (e) {
+      snack('사진 업로드 중 오류가 났어요 — 기존 방식으로 첨부합니다', null);
+    }
+  };
+})();
 </script>
 </body> </html>
