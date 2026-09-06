@@ -67,11 +67,11 @@ window.NEWS_SYNC_CONFIG = {
   /* 정본으로 보낼 인라인 첨부(data URI) 하나의 상한.
      이걸 넘는 이미지는 올라가지 않는다 — 대신 img/ 경로나
      외부 https 주소로 넣으면 크기 제한 없이 그대로 연동된다. */
-  maxInlineMediaBytes: 400 * 1024,
+  maxInlineMediaBytes: 4 * 1024 * 1024,
 
   /* posts.json 전체의 상한. 넘으면 발행을 막고 이유를 말해 준다.
      저장소를 무겁게 만들지 않기 위한 안전선이다. */
-  maxPayloadBytes: 5 * 1024 * 1024,
+  maxPayloadBytes: 25 * 1024 * 1024,
 
   /* 발행 키를 이 브라우저에 기억할지. false면 탭을 닫을 때까지만 유지된다.
      공용 컴퓨터에서는 false로 둔다. */
