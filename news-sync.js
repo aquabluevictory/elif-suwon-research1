@@ -463,6 +463,11 @@
       return { ok: false, error: '업로드 중 연결이 끊겼어요' };
     }
     if (r.ok) return { ok: true, path: path };
+
+    // 실측: 25MB 까지는 안정적이고, 30MB 부근부터 502 가 섞이며, 40MB 는 422 로 확실히 거절된다.
+    if (r.status === 422 || r.status === 502 || r.status === 413) {
+      return { ok: false, error: '파일이 너무 커서 GitHub이 거절했어요 — 25MB 아래로 줄이거나, 영상은 YouTube·Vimeo 주소로 넣어 주세요' };
+    }
     return { ok: false, error: ghError(r).msg };
   }
 
