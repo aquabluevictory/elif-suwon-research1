@@ -7130,6 +7130,7 @@ LTV 70퍼센트는 상한일 뿐이다. 실제 한도는 DSR이 정한다. 84A�
         if (sw.ok) navigator.serviceWorker.register('sw.js').catch(()=>{});
         const mf = await fetch('manifest.webmanifest', {method:'HEAD'});
         if (mf.ok){ const l=document.createElement('link'); l.rel='manifest'; l.href='manifest.webmanifest'; document.head.appendChild(l); }
+        if (navigator.storage && navigator.storage.persist) { try{ if(!(await navigator.storage.persisted())) await navigator.storage.persist(); }catch(e){} }
       }catch(e){}
     });
   }
