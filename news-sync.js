@@ -159,6 +159,11 @@
       if (m.poster && String(m.poster).length > CFG.maxInlineMediaBytes) delete m.poster;
       // blob: URL은 이 세션에서만 유효하다. 다른 기기에서는 깨진 링크가 된다.
       if (m.url && /^blob:/i.test(String(m.url))) delete m.url;
+      // data 에도 objectURL 이 들어온다. 짧아서 크기 필터를 통과하므로 여기서 막는다.
+      if (m.data && /^blob:/i.test(String(m.data))) {
+        delete m.data;
+        if (!m.url && !m.embed) m.unavailable = true;
+      }
       a.media = m;
     }
     return { post: a, droppedMedia: dropped };
@@ -426,6 +431,36 @@
     }
     if (r.status === 404) return { fatal: true, msg: '저장소를 찾을 수 없거나 토큰에 접근 권한이 없어요' };
     return { fatal: false, msg: (r.json && r.json.message) || ('HTTP ' + r.status) };
+  }
+
+  /* ── 저장소에 자산(사진 등) 올리기 ───────────────────────────────
+     posts.json 에 dataURL 을 박으면 5MB 상한에 금방 닿는다. 사진은 별도
+     파일로 img/ 에 올리고 본문에는 상대경로만 남긴다. 이미 있는 경로면
+     sha 를 받아 덮어쓴다. */
+  async function ghPutAsset(path, b64, message) {
+    if (!getToken()) return { ok: false, error: '발행 키가 없어요' };
+    if (!GH.owner || !GH.repo) return { ok: false, error: 'sync-config.js의 github.owner / repo가 비어 있어요' };
+
+    var url = GH.api + '/repos/' + encodeURIComponent(GH.owner) + '/' + encodeURIComponent(GH.repo) +
+              '/contents/' + String(path).split('/').map(encodeURIComponent).join('/');
+
+    var sha = null;
+    try {
+      var head = await req(url + '?ref=' + encodeURIComponent(GH.branch), { method: 'GET', headers: ghHeaders() });
+      if (head.ok && head.json && head.json.sha) sha = head.json.sha;
+    } catch (e) {}
+
+    var body = { message: message || ((GH.commitPrefix || 'posts:') + ' asset ' + path), content: b64, branch: GH.branch };
+    if (sha) body.sha = sha;
+
+    var r;
+    try {
+      r = await req(url, { method: 'PUT', headers: ghHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify(body) });
+    } catch (e2) {
+      return { ok: false, error: '업로드 중 연결이 끊겼어요' };
+    }
+    if (r.ok) return { ok: true, path: path };
+    return { ok: false, error: ghError(r).msg };
   }
 
   function shortId(id) { return String(id || '').slice(0, 14); }
@@ -909,7 +944,8 @@
     push: push,
     remove: remove,
     replaceAll: replaceAll,
-    flushQueue: flushQueue
+    flushQueue: flushQueue,
+    putAsset: ghPutAsset
   };
 
   // 앱 부팅을 기다리지 않고 미리 한 번 당겨 둔다 — 첫 화면이 그만큼 빨리 최신이 된다
