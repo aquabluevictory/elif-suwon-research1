@@ -209,9 +209,12 @@
   async function req(url, opts) {
     var o = Object.assign({ cache: 'no-store' }, opts || {});
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    if (ctrl) {
+    // 큰 첨부 업로드는 15초를 넘긴다. 호출부가 시간을 늘릴 수 있게 한다.
+    var tmo = (o.timeoutMs === undefined) ? 15000 : (o.timeoutMs | 0);
+    delete o.timeoutMs;
+    if (ctrl && tmo > 0) {
       o.signal = ctrl.signal;
-      setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 15000);
+      setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, tmo);
     }
     var r = await fetch(url, o);
     var text = await r.text();
@@ -446,7 +449,7 @@
 
     var sha = null;
     try {
-      var head = await req(url + '?ref=' + encodeURIComponent(GH.branch), { method: 'GET', headers: ghHeaders() });
+      var head = await req(url + '?ref=' + encodeURIComponent(GH.branch), { method: 'GET', headers: ghHeaders(), timeoutMs: 30000 });
       if (head.ok && head.json && head.json.sha) sha = head.json.sha;
     } catch (e) {}
 
@@ -455,7 +458,7 @@
 
     var r;
     try {
-      r = await req(url, { method: 'PUT', headers: ghHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify(body) });
+      r = await req(url, { method: 'PUT', headers: ghHeaders(null, { 'content-type': 'application/json' }), body: JSON.stringify(body), timeoutMs: 900000 });
     } catch (e2) {
       return { ok: false, error: '업로드 중 연결이 끊겼어요' };
     }
